@@ -1,0 +1,89 @@
+# configs/default.yaml
+# -------------------
+# Generic configuration for running the pipeline on user-provided Comtrade CSV files.
+# This file is meant to be edited per project, but also works as a default.
+
+project:
+  name: "ai-infrastructure-trade"
+  basket_name: "ai_basket_v01_example"
+  basket_version: "v0.1"
+  description: "Generic pipeline to normalize COMTRADE CSVs and build auditable intermediate datasets."
+
+inputs:
+  # Root folder containing raw files (you can keep HS6 subfolders or place CSVs directly).
+  raw_root: "data/raw"
+
+  # How to discover files:
+  # - "hs6_folders": expects raw_root/<HS6>/*.csv
+  # - "flat": expects raw_root/*.csv
+  discovery_mode: "hs6_folders"
+
+  # CSV separator (your files are comma-separated)
+  csv_sep: ","
+
+  # File glob pattern (used by discovery; keep *.csv in most cases)
+  glob: "*.csv"
+
+basket:
+  # Provide HS6 list here (software will analyze ONLY these codes).
+  # You can paste your list or point to another config file later.
+  hs6:
+    - "841582"
+    - "847150"
+    - "847170"
+    - "850440"
+    - "851762"
+    - "854231"
+    - "854232"
+    - "854239"
+    - "854470"
+
+  # Optional metadata (helps auditing and later table generation)
+  meta:
+    "854231": { desc: "Integrated circuits: processors and controllers", layer: "compute", proxy: false }
+    "854232": { desc: "Integrated circuits: memories", layer: "compute", proxy: false }
+    "854239": { desc: "Integrated circuits: other (n.e.c.)", layer: "compute", proxy: true }
+    "847150": { desc: "ADP units: processing units", layer: "compute", proxy: false }
+    "847170": { desc: "ADP units: storage units", layer: "storage", proxy: false }
+    "851762": { desc: "Communication apparatus: switching/routing; data transmission/regeneration", layer: "network", proxy: false }
+    "854470": { desc: "Optical fibre cables", layer: "optics", proxy: false }
+    "850440": { desc: "Electrical static converters (proxy for PSU/UPS)", layer: "power", proxy: true }
+    "841582": { desc: "Air conditioning machines (proxy for facility cooling)", layer: "facility", proxy: true }
+
+schema:
+  # Maps your raw CSV columns -> canonical columns used by the pipeline.
+  # Based on your header:
+  # refYear, reporterISO, reporterDesc, partnerISO, partnerDesc, flowDesc, cmdCode, primaryValue, ...
+  rename_map:
+    refYear: "year"
+    reporterISO: "reporter"
+    reporterDesc: "reporter_name_raw"
+    partnerISO: "partner"
+    partnerDesc: "partner_name_raw"
+    flowDesc: "flow"
+    cmdCode: "hs6"
+    primaryValue: "value"
+
+  # Columns that should be kept (others will remain unless later steps slim them down)
+  required_columns:
+    - "year"
+    - "reporter"
+    - "partner"
+    - "hs6"
+    - "value"
+
+filters:
+  year_min: 2021
+  year_max: 2024
+  value_positive_only: true
+
+outputs:
+  # Intermediate artifacts (regenerated; typically not committed)
+  processed_root: "data/processed"
+  intermediate_dataset_name: "dataset.parquet"
+
+  # Exploratory audits (Excel; regenerated)
+  exploratory_excels_dir: "data/processed/exploratory_excels"
+
+  # Logs (regenerated)
+  logs_dir: "outputs/logs"

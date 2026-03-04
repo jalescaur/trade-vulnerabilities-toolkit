@@ -1,0 +1,53 @@
+# configs/template.yaml
+# ---------------------
+# Blank template for running the pipeline on your own COMTRADE exports.
+
+project:
+  name: "ai-infrastructure-trade"
+  basket_name: "your_basket_name"
+  basket_version: "vX.Y"
+  description: "Describe your basket and research use-case here."
+
+inputs:
+  raw_root: "data/raw"
+  discovery_mode: "hs6_folders"   # or "flat"
+  csv_sep: ","
+  glob: "*.csv"
+
+basket:
+  # HS6 codes that define your analyzable product basket
+  hs6:
+    - "000000"
+  # Optional metadata
+  meta:
+    "000000": { desc: "HS description", layer: "layer_name", proxy: false }
+
+schema:
+  # Map *your* CSV column names to canonical names:
+  rename_map:
+    refYear: "year"
+    reporterISO: "reporter"
+    reporterDesc: "reporter_name_raw"
+    partnerISO: "partner"
+    partnerDesc: "partner_name_raw"
+    flowDesc: "flow"
+    cmdCode: "hs6"
+    primaryValue: "value"
+
+  required_columns:
+    - "year"
+    - "reporter"
+    - "partner"
+    - "hs6"
+    - "value"
+
+filters:
+  year_min: 2021
+  year_max: 2024
+  value_positive_only: true
+
+outputs:
+  processed_root: "data/processed"
+  intermediate_dataset_name: "dataset.parquet"
+  exploratory_excels_dir: "data/processed/exploratory_excels"
+  logs_dir: "outputs/logs"

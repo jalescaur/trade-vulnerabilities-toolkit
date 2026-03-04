@@ -1,0 +1,25 @@
+# --- raw data (user-provided; usually not committed) ---
+data/raw/*
+
+# --- processed artifacts (regenerated) ---
+data/processed/
+
+# --- logs (regenerated) ---
+outputs/logs/
+
+# --- outputs (unique for each project)
+
+outputs
+
+# --- python ---
+__pycache__/
+*.pyc
+*.pyo
+
+# --- env ---
+.venv/
+.env
+
+# --- OS ---
+.DS_Store
+Thumbs.db

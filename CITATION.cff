@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+title: "Trade Vulnerabilities Toolkit: A config-driven pipeline for COMTRADE CSV normalization and trade vulnerability auditing"
+type: software
+
+authors:
+  - family-names: "Caur"
+    given-names: "Jales"
+    orcid: "https://orcid.org/EDITAR"
+    affiliation: "University of Brasília"
+  - family-names: "Kreuz"
+    given-names: "Jônatas"
+    orcid: "https://orcid.org/EDITAR"
+    affiliation: "University of Brasília"
+
+repository-code: "https://github.com/EDITAR"
+url: "https://github.com/EDITAR"
+
+keywords:
+  - "UN COMTRADE"
+  - "Trade"
+  - "Geoeconomics"
+  - "Global Value Chains"
+  - "Harmonized System (HS)"
+  - "International Political Economy"
+  - "Supply chain vulnerabilities"
+
+license: "MIT"
+version: "0.1.0"
+date-released: "2026-03-03"
+
+# After minting a Zenodo DOI for a release, add:
+# doi: "10.5281/zenodo.1234567"
