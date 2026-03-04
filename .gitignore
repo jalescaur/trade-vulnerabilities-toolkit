@@ -9,7 +9,8 @@ outputs/logs/
 
 # --- outputs (unique for each project)
 
-outputs
+outputs/figures/
+outputs/tables/
 
 # --- python ---
 __pycache__/

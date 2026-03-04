@@ -10,19 +10,16 @@ project:
   description: "Generic pipeline to normalize COMTRADE CSVs and build auditable intermediate datasets."
 
 inputs:
-  # Root folder containing raw files (you can keep HS6 subfolders or place CSVs directly).
   raw_root: "data/raw"
-
-  # How to discover files:
-  # - "hs6_folders": expects raw_root/<HS6>/*.csv
-  # - "flat": expects raw_root/*.csv
   discovery_mode: "hs6_folders"
-
-  # CSV separator (your files are comma-separated)
   csv_sep: ","
-
-  # File glob pattern (used by discovery; keep *.csv in most cases)
   glob: "*.csv"
+
+  csv_encoding: "utf-8"
+  csv_encoding_fallbacks:
+    - "utf-8-sig"
+    - "cp1252"
+    - "latin1"
 
 basket:
   # Provide HS6 list here (software will analyze ONLY these codes).

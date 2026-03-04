@@ -92,7 +92,11 @@ def main() -> None:
     log.info(f"Discovered {len(files)} raw files.")
 
     # Load
-    df_raw = load_csv_files(files, sep=sep)
+    sep = cfg["inputs"]["csv_sep"]
+    enc = cfg["inputs"].get("csv_encoding", "utf-8")
+    enc_fb = cfg["inputs"].get("csv_encoding_fallbacks", ["utf-8-sig", "cp1252", "latin1"])
+
+    df_raw = load_csv_files(files, sep=sep, encoding=enc, encoding_fallbacks=enc_fb)
     log.info(f"Raw loaded: rows={len(df_raw):,}, cols={len(df_raw.columns)}")
 
     # Build basket
