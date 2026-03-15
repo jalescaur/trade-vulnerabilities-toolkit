@@ -1,24 +1,16 @@
 """
 scripts/10_build_metrics_tables.py
 ==================================
-Build chapter-ready metric tables (Excel formatted) + exploratory plots (PDF).
-
-Usage:
-  python scripts/10_build_metrics_tables.py --config configs/default.yaml
-
-Outputs:
-- Chapter tables (formatted): outputs/tables/*.xlsx
-- Exploratory plots (compiled PDF): data/processed/exploratory_figures/metrics_exploratory.pdf
+Build chapter-ready metric tables (Excel) and the Master Summary.
+Includes enriched theoretical explanations.
 """
 
 from __future__ import annotations
 
 import argparse
 from pathlib import Path
-
 import pandas as pd
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
+import pycountry
 
 from src.runtime_config import load_config, cfg_paths
 from src.io.excel_format import write_excel_table
@@ -32,17 +24,38 @@ from src.analysis.trade_tables import (
     table_iit_summary,
     table_export_diversification,
 )
-from src.analysis.vulnerability_tables import (
-    table_import_dependence,
-    table_bilateral_exposure_top,
-    table_dyadic_asymmetry_top,
-    table_shock_top,
-    table_supplier_chokepoints,
-)
 from src.utils.logging import get_logger
 
 log = get_logger(__name__)
 
+G20_ISO = [
+    "ARG", "AUS", "BRA", "CAN", "CHN", "FRA", "DEU", "IND", "IDN", "ITA", 
+    "JPN", "KOR", "MEX", "RUS", "SAU", "ZAF", "TUR", "GBR", "USA", "EU2"
+]
+
+def get_country_name(iso3: str) -> str:
+    if pd.isna(iso3):
+        return ""
+    try:
+        overrides = {"TWN": "Taiwan", "S19": "Taiwan", "WLD": "World", "EU2": "European Union"}
+        if iso3 in overrides:
+            return overrides[iso3]
+        return pycountry.countries.get(alpha_3=iso3).name
+    except Exception:
+        return str(iso3)
+
+def inject_country_names(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    target_cols = ["reporter", "partner", "exporter", "importer", "country", "top_supplier"]
+    for col in target_cols:
+        if col in df.columns:
+            df[f"{col}_name"] = df[col].apply(get_country_name)
+            cols = list(df.columns)
+            cols.remove(f"{col}_name")
+            idx = cols.index(col)
+            cols.insert(idx + 1, f"{col}_name")
+            df = df[cols]
+    return df
 
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
@@ -50,277 +63,174 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def _pick_input_dataset(cfg: dict, paths: dict) -> Path:
-    """
-    Prefer the enriched dataset with country names if it exists:
-      <stem>_country_names.parquet
-    else fall back to intermediate dataset.
-    """
-    base = Path(cfg["outputs"]["intermediate_dataset_name"]).stem
-    candidate = paths["processed_root"] / "intermediate_tables" / f"{base}_country_names.parquet"
-    return candidate if candidate.exists() else paths["intermediate_dataset"]
+def build_master_summary(df: pd.DataFrame, out_path: Path):
+    log.info("Building Table_00_MasterSummary.xlsx ...")
+    
+    with pd.ExcelWriter(out_path, engine="openpyxl") as writer:
+        
+        # TAB 1: Explanations - Grounded in the theoretical framework
+        explanations = [
+            {"Variable / Metric": "Market Share / Value", "Explanation": "Fundamental building block reflecting factor endowments and technological differences. Tracks competitive position, emerging actors, and structure of import dependence."},
+            {"Variable / Metric": "CRk (Concentration Ratio)", "Explanation": "Originates in industrial organization (Bain, 1951). Quantifies market dominance of the top 'k' suppliers. High values signal oligopoly power, supply-chain vulnerability, and exposure to geopolitical weaponization."},
+            {"Variable / Metric": "HHI (Herfindahl-Hirschman Index)", "Explanation": "Sum of squared market shares (Hirschman, 1964). Values > 0.25 indicate highly concentrated markets. Its convexity makes it highly sensitive to the presence of large players, serving as a key indicator of systemic monopoly/dependency."},
+            {"Variable / Metric": "RCA (Revealed Comparative Advantage)", "Explanation": "Balassa Index (1965). Answers whether a country 'punches above its weight' in a product. RCA > 1 signifies over-representation relative to the global baseline, indicating structural competitive strength in AI infrastructure."},
+            {"Variable / Metric": "Entropy", "Explanation": "Shannon Entropy (1948). Captures export portfolio diversification. Unlike HHI, it accounts for the entire distribution spread. Higher entropy reflects broader resilience against isolated demand shocks and terms-of-trade volatility."},
+            {"Variable / Metric": "CAGR", "Explanation": "Compound Annual Growth Rate. Isolates long-run structural growth trajectories across products and countries from cyclical, short-term fluctuations."},
+            {"Variable / Metric": "CV (Coefficient of Variation)", "Explanation": "Standard deviation divided by the mean. Functions as a proxy for market volatility and uncertainty. High CV indicates erratic trade behavior and susceptibility to price shocks."},
+            {"Variable / Metric": "IIT (Grubel-Lloyd Index)", "Explanation": "Intra-Industry Trade (1975). Measures simultaneous export and import within the same category. Values approaching 1.0 indicate highly integrated mutual supply chains, typical of advanced economies trading differentiated varieties."},
+            {"Variable / Metric": "G20 Filter", "Explanation": "Vulnerability rankings are isolated to major economies (G20) to provide policy-relevant insights into multipolar competition, avoiding mathematical distortions from micro-states."},
+        ]
+        
+        pd.DataFrame(explanations).to_excel(writer, sheet_name="1_Explanations", index=False)
 
+        # TAB 2: Global Totals (Wide Format para evitar erros de soma no Excel)
+        g_tot = df.groupby(["year", "flow"])["value"].sum().unstack(fill_value=0).reset_index()
+        g_tot.columns.name = None
+        for col in ["Export", "Import"]:
+            if col not in g_tot.columns:
+                g_tot[col] = 0
+        g_tot["Total_Trade (Exp+Imp)"] = g_tot["Export"] + g_tot["Import"]
+        g_tot = g_tot[["year", "Export", "Import", "Total_Trade (Exp+Imp)"]]
+        g_tot.to_excel(writer, sheet_name="2_Global_Totals", index=False)
+
+        # TAB 3: HS6 Totals (Wide Format)
+        hs6_tot = df.groupby(["year", "hs6", "flow"])["value"].sum().unstack(fill_value=0).reset_index()
+        hs6_tot.columns.name = None
+        for col in ["Export", "Import"]:
+            if col not in hs6_tot.columns:
+                hs6_tot[col] = 0
+        hs6_tot["Total_Trade (Exp+Imp)"] = hs6_tot["Export"] + hs6_tot["Import"]
+        hs6_tot = hs6_tot[["year", "hs6", "Export", "Import", "Total_Trade (Exp+Imp)"]]
+        hs6_tot.to_excel(writer, sheet_name="3_HS6_Totals", index=False)
+
+        # TAB 4: Top Actors Overall
+        exporters = df[df.flow == "Export"].groupby("reporter")["value"].sum().reset_index()
+        exporters["Country"] = exporters["reporter"].apply(get_country_name)
+        exporters = exporters.sort_values("value", ascending=False).head(15)
+        
+        importers = df[df.flow == "Import"].groupby("reporter")["value"].sum().reset_index()
+        importers["Country"] = importers["reporter"].apply(get_country_name)
+        importers = importers.sort_values("value", ascending=False).head(15)
+        
+        top_actors = pd.concat([
+            exporters.rename(columns={"reporter":"Exp_ISO", "value":"Total_Export_USD", "Country":"Top_Exporters"}).reset_index(drop=True),
+            importers.rename(columns={"reporter":"Imp_ISO", "value":"Total_Import_USD", "Country":"Top_Importers"}).reset_index(drop=True)
+        ], axis=1)
+        top_actors.to_excel(writer, sheet_name="4_Top_Actors_Overall", index=False)
+
+        # TAB 5: All Actors by Year
+        actors_yr = df.groupby(["year", "flow", "reporter"])["value"].sum().reset_index()
+        actors_yr["Country"] = actors_yr["reporter"].apply(get_country_name)
+        actors_yr = actors_yr.sort_values(["year", "flow", "value"], ascending=[True, True, False])
+        actors_yr.rename(columns={"reporter": "ISO3", "value": "Total_USD"}, inplace=True)
+        actors_yr[["year", "flow", "ISO3", "Country", "Total_USD"]].to_excel(writer, sheet_name="5_Actors_By_Year", index=False)
+
+        # TAB 6: Top 10 Actors by Year
+        top10_yr = actors_yr.groupby(["year", "flow"]).head(10)
+        top10_yr.to_excel(writer, sheet_name="6_Top10_By_Year", index=False)
+
+        # TAB 7: Most Vulnerable (Filtered to G20)
+        dep_df = table_importer_dependency(df)
+        vuln = dep_df[dep_df["importer"].isin(G20_ISO)].groupby("importer").agg(
+            Avg_Top1_Share=("Top1_share", "mean"),
+            Avg_Supplier_HHI=("HHI_suppliers", "mean"),
+            Unique_Suppliers_Used=("n_suppliers", "mean")
+        ).reset_index()
+        vuln["Country"] = vuln["importer"].apply(get_country_name)
+        vuln = vuln.sort_values("Avg_Top1_Share", ascending=False)
+        vuln = vuln[["importer", "Country", "Avg_Top1_Share", "Avg_Supplier_HHI", "Unique_Suppliers_Used"]]
+        vuln.to_excel(writer, sheet_name="7_Most_Vulnerable_G20", index=False)
+
+        # TAB 8: Most Resilient
+        valid_exporters = exporters["reporter"].tolist()
+        ent_df = table_export_diversification(df)
+        strong = ent_df[ent_df["exporter"].isin(valid_exporters)].groupby("exporter").agg(
+            Avg_Export_Entropy=("entropy", "mean"),
+            Avg_Products_Exported=("n_products", "mean")
+        ).reset_index()
+        strong["Country"] = strong["exporter"].apply(get_country_name)
+        strong = strong.sort_values("Avg_Export_Entropy", ascending=False).head(15)
+        strong = strong.merge(exporters[["reporter", "value"]].rename(columns={"value": "Total_Export_USD"}), left_on="exporter", right_on="reporter")
+        strong = strong[["exporter", "Country", "Total_Export_USD", "Avg_Export_Entropy", "Avg_Products_Exported"]]
+        strong.to_excel(writer, sheet_name="8_Most_Resilient", index=False)
 
 def main() -> None:
     args = parse_args()
     cfg = load_config(args.config)
     paths = cfg_paths(cfg)
 
-    out_tables = Path("outputs") / "tables"
-    out_tables.mkdir(parents=True, exist_ok=True)
-
-    processed_root = paths["processed_root"]
-    exploratory_fig_dir = processed_root / "exploratory_figures"
-    exploratory_fig_dir.mkdir(parents=True, exist_ok=True)
-
-    in_path = _pick_input_dataset(cfg, paths)
+    in_path = paths["processed_root"] / "intermediate_tables" / f"{cfg['outputs']['intermediate_dataset_name'].replace('.parquet', '_country_names.parquet')}"
     if not in_path.exists():
-        raise FileNotFoundError(
-            f"Input dataset not found: {in_path}\n"
-            f"Run the constructor pipeline first:\n"
-            f"  python scripts/run_all.py --config {args.config}"
-        )
+        in_path = paths["intermediate_dataset"]
 
     df = pd.read_parquet(in_path)
+    # W00 agora é filtrado direto na raiz (normalize.py), garantindo 100% de integridade no pipeline.
+    
     log.info(f"Loaded analysis input: {in_path} | rows={len(df):,}, cols={len(df.columns)}")
 
-    # -----------------------
-    # Build tables (core trade metrics)
-    # -----------------------
-    t1 = table_global_totals(df)
-    t2 = table_hs6_shares(df)
-    t3 = table_global_exporter_concentration(df)
-    t4 = table_importer_dependency(df)
-    t5 = table_growth_volatility(df)
-    t6 = table_rca_top(df, top_n=10)
-    t7 = table_iit_summary(df)
-    t8 = table_export_diversification(df)
-    t9  = table_import_dependence(df)
-    t10 = table_bilateral_exposure_top(df, top_n=25)
-    t11 = table_dyadic_asymmetry_top(df, top_n=25)
-    t12 = table_shock_top(df, top_n=25)
-    t13 = table_supplier_chokepoints(df, top_n=20)  # extra (chokepoint ranking)
+    out_dir = Path("outputs") / "tables"
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    # -----------------------
-    # Export "official" Excel outputs (chapter-ready)
-    # -----------------------
-    note_common = (
-        "Computed from user-provided UN COMTRADE CSV exports after canonical normalization. "
-        "Values are trade values as provided by COMTRADE (commonly in USD)."
-    )
+    build_master_summary(df, out_dir / "Table_00_MasterSummary.xlsx")
 
+    # Tabelas Individuais com Notas Teóricas Aprofundadas
+    t1 = inject_country_names(table_global_totals(df))
     write_excel_table(
-        t1, out_tables / "Table_01_GlobalTotals.xlsx",
-        sheet_name="GlobalTotals",
-        title="Table 1. Global basket totals by year and flow",
-        note=note_common,
-        currency_cols=["total_value"],
-        freeze_at="A3",
+        t1, out_dir / "Table_01_GlobalTotals.xlsx", "GlobalTotals", "Table 1: Global Trade Totals by Flow",
+        note="Reflects the absolute market size (USD). Tracks structural trade shifts and global expansion of the AI infrastructure sector.",
+        int_cols=["total_value"]
     )
 
+    t2 = inject_country_names(table_hs6_shares(df))
     write_excel_table(
-        t2, out_tables / "Table_02_HS6Shares.xlsx",
-        sheet_name="HS6Shares",
-        title="Table 2. HS6 shares of basket total by year and flow",
-        note=note_common,
-        currency_cols=["hs6_value", "basket_total"],
-        percent_cols=["share_of_basket"],
-        freeze_at="A3",
+        t2, out_dir / "Table_02_HS6Shares.xlsx", "HS6Shares", "Table 2: HS6 Global Market Shares",
+        note="Market share analysis. Identifies the proportional weight and relative importance of specific AI technology segments within the total basket.",
+        percent_cols=["share_of_basket"]
     )
 
+    t3 = inject_country_names(table_global_exporter_concentration(df))
     write_excel_table(
-        t3, out_tables / "Table_03_GlobalExporterConcentration.xlsx",
-        sheet_name="Concentration",
-        title="Table 3. Global exporter concentration by HS6 and year (HHI, CR3, CR5)",
-        note="Exporter concentration computed on Export flows: exporters = reporter. "
-             "HHI and CRk are computed from exporter market shares.",
-        percent_cols=["CR3", "CR5"],
-        float_cols=["HHI"],
-        int_cols=["n_exporters"],
-        freeze_at="A3",
+        t3, out_dir / "Table_03_GlobalConcentration.xlsx", "GlobalConc", "Table 3: Global Exporter Concentration (HHI & CRk)",
+        note="Based on Hirschman (1964) and Bain (1951). HHI > 0.25 indicates highly concentrated origin markets, signaling global supply-chain vulnerability and oligopoly power.",
+        percent_cols=["CR3", "CR5"], float_cols=["HHI"]
     )
 
+    t4 = inject_country_names(table_importer_dependency(df))
     write_excel_table(
-        t4, out_tables / "Table_04_ImporterDependency.xlsx",
-        sheet_name="Dependency",
-        title="Table 4. Importer supplier dependency by HS6 and year (Top1 share and supplier concentration)",
-        note="Importer dependency computed on Import flows: importer = reporter, supplier = partner. "
-             "Top1_share is the largest supplier share for a given importer-HS6-year.",
-        percent_cols=["Top1_share", "CR1", "CR3", "CR5"],
-        float_cols=["HHI_suppliers"],
-        int_cols=["n_suppliers"],
-        freeze_at="A3",
+        t4, out_dir / "Table_04_ImporterDependency.xlsx", "ImpDep", "Table 4: Importer Supply Dependency (Chokepoints)",
+        note="Assesses structural dependency at the nation-state level. High Top1_share reveals reliance on a single supplier, representing a critical geoeconomic chokepoint.",
+        percent_cols=["Top1_share", "CR1", "CR3", "CR5"], float_cols=["HHI_suppliers"]
     )
 
+    t5 = inject_country_names(table_growth_volatility(df))
     write_excel_table(
-        t5, out_tables / "Table_05_GrowthVolatility.xlsx",
-        sheet_name="GrowthVolatility",
-        title="Table 5. HS6 growth and volatility (YoY growth, CAGR, coefficient of variation)",
-        note="Growth/volatility computed from HS6 totals within the basket. "
-             "CAGR/CV are computed over the available time window per HS6 and flow.",
-        percent_cols=["yoy_growth", "CAGR"],
-        float_cols=["CV"],
-        currency_cols=["hs6_value"],
-        freeze_at="A3",
+        t5, out_dir / "Table_05_GrowthVolatility.xlsx", "GrowthVol", "Table 5: HS6 Growth (CAGR) and Volatility (CV)",
+        note="CAGR isolates long-run structural trends, while the Coefficient of Variation (CV) measures uncertainty, market instability, and exposure to short-term shocks.",
+        percent_cols=["yoy_growth", "CAGR"], float_cols=["CV"]
     )
 
+    t6 = inject_country_names(table_rca_top(df, top_n=15))
     write_excel_table(
-        t6, out_tables / "Table_06_RCA_Top10.xlsx",
-        sheet_name="RCA",
-        title="Table 6. Revealed Comparative Advantage (Balassa RCA): top exporters per HS6",
-        note="RCA computed from Export flows using the Balassa definition. "
-             "This table reports the top 10 exporters by RCA for each HS6 and year.",
-        float_cols=["RCA"],
-        currency_cols=[],
-        freeze_at="A3",
+        t6, out_dir / "Table_06_RCATopExporters.xlsx", "RCA", "Table 6: Revealed Comparative Advantage (RCA)",
+        note="Balassa Index (1965). RCA > 1.0 indicates the country possesses a structural competitive advantage, exporting the technology at a higher rate than the global baseline.",
+        float_cols=["RCA"]
     )
 
+    t7 = inject_country_names(table_iit_summary(df))
     write_excel_table(
-        t7, out_tables / "Table_07_IIT_Summary.xlsx",
-        sheet_name="IIT",
-        title="Table 7. Intra-industry trade (Grubel–Lloyd) summary by HS6 and year",
-        note="IIT computed per country-HS6-year using Export and Import flows for the same reporter. "
-             "This table summarizes mean and median IIT across countries with non-zero trade.",
-        float_cols=["mean_IIT", "median_IIT"],
-        int_cols=["n_countries"],
-        freeze_at="A3",
+        t7, out_dir / "Table_07_IntraIndustryTrade.xlsx", "IIT", "Table 7: Intra-Industry Trade (Grubel-Lloyd)",
+        note="Grubel & Lloyd (1975). Measures simultaneous two-way trade. Values near 1.0 show highly integrated mutual supply chains, typical of advanced economies.",
+        float_cols=["mean_IIT", "median_IIT"]
     )
 
+    t8 = inject_country_names(table_export_diversification(df))
     write_excel_table(
-        t8, out_tables / "Table_08_ExportDiversification.xlsx",
-        sheet_name="Diversification",
-        title="Table 8. Export diversification (entropy) across HS6 within the basket",
-        note="Entropy computed from exporter HS6 export shares (higher entropy indicates more diversified export portfolio).",
-        float_cols=["entropy"],
-        int_cols=["n_products"],
-        freeze_at="A3",
+        t8, out_dir / "Table_08_ExportDiversification.xlsx", "ExportDiv", "Table 8: Export Portfolio Diversification (Entropy)",
+        note="Shannon Entropy (1948). Higher values indicate a diversified export base, conferring broad resilience against single-product market shocks and terms-of-trade volatility.",
+        float_cols=["entropy"]
     )
 
-    write_excel_table(
-        t9, out_tables / "Table_09_ImportDependence_TopK.xlsx",
-        sheet_name="ImportDependence",
-        title="Table 9. Import dependence by HS6 and year (Top1/Top3/Top5 shares; supplier HHI)",
-        note="Computed from Import flows: importer = reporter, supplier = partner. "
-            "TopK_share sums the K largest supplier shares for each importer-HS6-year.",
-        percent_cols=["Top1_share", "Top3_share", "Top5_share"],
-        float_cols=["HHI_suppliers"],
-        int_cols=["n_suppliers"],
-        freeze_at="A3",
-    )
-
-    write_excel_table(
-        t10, out_tables / "Table_10_BilateralExposure_Top.xlsx",
-        sheet_name="Exposure",
-        title="Table 10. Top bilateral import exposures by HS6 and year",
-        note="Exposure(A<-B) = imports by A from B / total imports by A (within HS6 and year).",
-        percent_cols=["exposure"],
-        currency_cols=["importer_total", "bilateral_value"],
-        freeze_at="A3",
-    )
-
-    write_excel_table(
-        t11, out_tables / "Table_11_DyadicAsymmetry_Top.xlsx",
-        sheet_name="Asymmetry",
-        title="Table 11. Top asymmetric exposure dyads by HS6 and year",
-        note="Asymmetry(A,B) = Exposure(A<-B) - Exposure(B<-A), where Exposure is computed from Import flows.",
-        percent_cols=["A<-B", "B<-A", "asymmetry"],
-        freeze_at="A3",
-    )
-
-    write_excel_table(
-        t12, out_tables / "Table_12_Shock_RemoveTopSupplier.xlsx",
-        sheet_name="ShockTop1",
-        title="Table 12. Shock simulation: remove top supplier (largest potential import loss) by HS6 and year",
-        note="For each importer-HS6-year, the shock loss share equals the top supplier share. "
-            "This is a simple stress test proxy for chokepoint vulnerability.",
-        percent_cols=["shock_loss_share"],
-        currency_cols=["total_import", "top1_value", "post_shock_import"],
-        freeze_at="A3",
-    )
-
-    write_excel_table(
-        t13, out_tables / "Table_13_SupplierChokepoints.xlsx",
-        sheet_name="Chokepoints",
-        title="Table 13. Supplier chokepoint indicators by HS6 and year",
-        note="Counts how often a supplier is the top-1 supplier across importers (and associated value/shares).",
-        int_cols=["n_importers_top1"],
-        currency_cols=["sum_top1_value"],
-        percent_cols=["mean_top1_share"],
-        freeze_at="A3",
-    )
-
-    log.info(f"Chapter tables written to: {out_tables.resolve()}")
-
-    # -----------------------
-    # Exploratory plots (compiled PDF into data/processed/)
-    # -----------------------
-    pdf_path = exploratory_fig_dir / "metrics_exploratory.pdf"
-    with PdfPages(pdf_path) as pdf:
-        # Plot 1: global totals by year-flow
-        p = t1.pivot(index="year", columns="flow", values="total_value")
-        fig, ax = plt.subplots(figsize=(7.5, 4.5))
-        p.plot(ax=ax, marker="o")
-        ax.set_title("Global basket totals by year and flow (exploratory)")
-        ax.set_xlabel("Year")
-        ax.set_ylabel("Trade value")
-        ax.grid(True, linestyle=":", alpha=0.25)
-        pdf.savefig(fig, bbox_inches="tight")
-        plt.close(fig)
-
-        # Plot 2: HS6 share of basket (stack-ish via lines)
-        # Pick one flow for readability (prefer Export if present)
-        flow_choice = "Export" if "Export" in t2["flow"].unique() else t2["flow"].unique()[0]
-        d = t2[t2["flow"] == flow_choice].copy()
-        fig, ax = plt.subplots(figsize=(7.5, 4.5))
-        for hs6, sub in d.groupby("hs6"):
-            ax.plot(sub["year"], sub["share_of_basket"], marker="o", linewidth=1)
-        ax.set_title(f"HS6 shares of basket total ({flow_choice}) — exploratory")
-        ax.set_xlabel("Year")
-        ax.set_ylabel("Share of basket")
-        ax.grid(True, linestyle=":", alpha=0.25)
-        pdf.savefig(fig, bbox_inches="tight")
-        plt.close(fig)
-
-        # Plot 3: HHI exporter concentration distribution
-        fig, ax = plt.subplots(figsize=(7.5, 4.5))
-        ax.hist(t3["HHI"].dropna(), bins=20)
-        ax.set_title("Distribution of exporter concentration (HHI) — exploratory")
-        ax.set_xlabel("HHI")
-        ax.set_ylabel("Count")
-        ax.grid(True, linestyle=":", alpha=0.25)
-        pdf.savefig(fig, bbox_inches="tight")
-        plt.close(fig)
-
-        # Plot 4: Shock loss share distribution (Top1 supplier removal)
-        if "shock_loss_share" in t12.columns:
-            fig, ax = plt.subplots(figsize=(7.5, 4.5))
-            ax.hist(t12["shock_loss_share"].dropna(), bins=20)
-            ax.set_title("Shock loss share (remove top supplier) — exploratory")
-            ax.set_xlabel("Shock loss share")
-            ax.set_ylabel("Count")
-            ax.grid(True, linestyle=":", alpha=0.25)
-            pdf.savefig(fig, bbox_inches="tight")
-            plt.close(fig)
-
-        # Plot 5: Supplier chokepoint ranking (top suppliers by n_importers_top1)
-        if "n_importers_top1" in t13.columns and "supplier" in t13.columns:
-            # Use the most recent year available for a simple snapshot
-            latest_year = t13["year"].max() if "year" in t13.columns else None
-            snap = t13[t13["year"] == latest_year].copy() if latest_year is not None else t13.copy()
-            snap = snap.sort_values("n_importers_top1", ascending=False).head(20)
-
-            fig, ax = plt.subplots(figsize=(7.5, 4.5))
-            ax.barh(snap["supplier"].astype(str), snap["n_importers_top1"])
-            ax.set_title(f"Supplier chokepoints (top 20 by # importers as top-1) — {latest_year} — exploratory")
-            ax.set_xlabel("# importers where supplier is top-1")
-            ax.set_ylabel("Supplier")
-            ax.grid(True, linestyle=":", alpha=0.25)
-            pdf.savefig(fig, bbox_inches="tight")
-            plt.close(fig)
-
-    log.info(f"Exploratory plots PDF written to: {pdf_path.resolve()}")
-    log.info("Done ✅")
-
+    log.info("Finished building all tables successfully.")
 
 if __name__ == "__main__":
     main()

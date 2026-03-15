@@ -1,17 +1,7 @@
 """
 src/io/load.py
 ==============
-Generic loader for raw CSV files discovered by src/io/discover.py.
-
-Features:
-- Reads a provided list of file paths (already discovered)
-- Supports configurable separator (sep)
-- Supports encoding + fallback encodings
-- Attaches provenance columns:
-  - _source_file
-  - _source_path
-  - _source_hs6_folder
-  - _source_encoding (which encoding succeeded)
+Generic loader for raw CSV files.
 """
 
 from __future__ import annotations
@@ -26,21 +16,30 @@ log = get_logger(__name__)
 
 def _read_csv_with_fallback(fp: Path, sep: str, encoding: str, fallbacks: list[str]) -> tuple[pd.DataFrame, str]:
     """
-    Try reading a CSV with an encoding, then fallbacks if UnicodeDecodeError occurs.
-    Returns (df, encoding_used).
+    Try reading a CSV with an encoding, then fallbacks.
+    Forces index_col=False to prevent column shifting issues.
     """
     encodings_to_try = [encoding] + [e for e in fallbacks if e != encoding]
 
     last_err = None
     for enc in encodings_to_try:
         try:
-            df = pd.read_csv(fp, sep=sep, encoding=enc)
+            # FIX: index_col=False is crucial for some Comtrade CSVs to avoid
+            # treating the first column (typeCode) as an index, which shifts everything.
+            df = pd.read_csv(fp, sep=sep, encoding=enc, index_col=False)
             return df, enc
         except UnicodeDecodeError as e:
             last_err = e
             continue
+        except pd.errors.ParserError:
+            # If standard parse fails, try looser engine (slower but robust)
+            try:
+                df = pd.read_csv(fp, sep=sep, encoding=enc, index_col=False, engine="python")
+                return df, enc
+            except Exception as e:
+                last_err = e
+                continue
 
-    # If everything failed, re-raise the last error (most informative)
     raise last_err
 
 
@@ -69,13 +68,19 @@ def load_csv_files(
         df["_source_hs6_folder"] = parent if parent.isdigit() and len(parent) == 6 else None
         df["_source_encoding"] = used_enc
 
-        # log encoding choice only when not default (to reduce noise)
-        if used_enc != encoding:
-            log.info(f"Encoding fallback used for {fp.name}: {used_enc}")
+        # clean column names (strip whitespace)
+        df.columns = df.columns.astype(str).str.strip()
 
         dfs.append(df)
         total += len(df)
+        if len(dfs) % 10 == 0:
+            log.info(f"Loaded {len(dfs)}/{len(files)} files...")
 
-    out = pd.concat(dfs, ignore_index=True)
-    log.info(f"Loaded {len(files)} files | Rows: {total:,} | Combined: {len(out):,}")
-    return out
+    log.info(f"Loaded {len(files)} files | Rows: {total:,}")
+
+    if not dfs:
+        return pd.DataFrame()
+
+    combined = pd.concat(dfs, ignore_index=True)
+    log.info(f"Combined: {len(combined):,} rows")
+    return combined

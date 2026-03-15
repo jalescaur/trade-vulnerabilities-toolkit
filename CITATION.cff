@@ -1,33 +1,136 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it using the metadata below."
-title: "Trade Vulnerabilities Toolkit: A config-driven pipeline for COMTRADE CSV normalization and trade vulnerability auditing"
+message: "If you use this software in your research, please cite it using the metadata below."
+title: "Trade Vulnerabilities Toolkit: A configuration-driven pipeline for UN COMTRADE data normalization and trade vulnerability analysis"
 type: software
 
 authors:
   - family-names: "Caur"
     given-names: "Jales"
-    orcid: "https://orcid.org/EDITAR"
+    orcid: "https://orcid.org/XXXX-XXXX-XXXX-XXXX"
     affiliation: "University of Brasília"
   - family-names: "Kreuz"
     given-names: "Jônatas"
-    orcid: "https://orcid.org/EDITAR"
+    orcid: "https://orcid.org/XXXX-XXXX-XXXX-XXXX"
     affiliation: "University of Brasília"
 
-repository-code: "https://github.com/EDITAR"
-url: "https://github.com/EDITAR"
+abstract: >-
+  A configuration-driven Python pipeline for normalizing UN COMTRADE bilateral
+  trade CSV exports and computing auditable trade vulnerability metrics. The
+  toolkit implements standard trade economics measures (Herfindahl-Hirschman
+  Index, Balassa RCA, Grubel-Lloyd IIT, Shannon entropy, CAGR, CV) alongside
+  supply chain vulnerability indicators (bilateral exposure, dyadic asymmetry,
+  top-supplier shock simulation, chokepoint scoring). All parameters are
+  specified via YAML configuration files, enabling reproducible analysis of
+  any HS6 product basket without code modification. Developed to support
+  research on AI infrastructure trade vulnerabilities, but general-purpose
+  by design.
+
+repository-code: "https://github.com/YOUR_REPO/trade-vulnerabilities-toolkit"
+url: "https://github.com/YOUR_REPO/trade-vulnerabilities-toolkit"
 
 keywords:
   - "UN COMTRADE"
-  - "Trade"
-  - "Geoeconomics"
-  - "Global Value Chains"
-  - "Harmonized System (HS)"
-  - "International Political Economy"
-  - "Supply chain vulnerabilities"
+  - "international trade"
+  - "trade metrics"
+  - "supply chain vulnerability"
+  - "geoeconomics"
+  - "Herfindahl-Hirschman Index"
+  - "revealed comparative advantage"
+  - "intra-industry trade"
+  - "Shannon entropy"
+  - "export controls"
+  - "semiconductors"
+  - "AI infrastructure"
+  - "global value chains"
+  - "Harmonized System"
+  - "weaponized interdependence"
 
 license: "MIT"
 version: "0.1.0"
 date-released: "2026-03-03"
 
-# After minting a Zenodo DOI for a release, add:
-# doi: "10.5281/zenodo.1234567"
+# After minting a Zenodo DOI for a release, uncomment and fill:
+# doi: "10.5281/zenodo.XXXXXXX"
+
+# Preferred citation for academic use:
+preferred-citation:
+  type: software
+  authors:
+    - family-names: "Caur"
+      given-names: "Jales"
+      affiliation: "University of Brasília"
+    - family-names: "Kreuz"
+      given-names: "Jônatas"
+      affiliation: "University of Brasília"
+  title: "Trade Vulnerabilities Toolkit: A configuration-driven pipeline for UN COMTRADE data normalization and trade vulnerability analysis"
+  version: "0.1.0"
+  date-released: "2026-03-03"
+  license: "MIT"
+  url: "https://github.com/YOUR_REPO/trade-vulnerabilities-toolkit"
+  # doi: "10.5281/zenodo.XXXXXXX"
+
+# Key methodological references implemented in this software:
+references:
+  - type: article
+    authors:
+      - family-names: "Balassa"
+        given-names: "Béla"
+    title: "Trade Liberalisation and 'Revealed' Comparative Advantage"
+    journal: "The Manchester School"
+    volume: 33
+    issue: 2
+    start: 99
+    end: 123
+    year: 1965
+    doi: "10.1111/j.1467-9957.1965.tb00050.x"
+
+  - type: book
+    authors:
+      - family-names: "Grubel"
+        given-names: "Herbert G."
+      - family-names: "Lloyd"
+        given-names: "Peter J."
+    title: "Intra-Industry Trade: The Theory and Measurement of International Trade in Differentiated Products"
+    publisher:
+      name: "Macmillan"
+      city: "London"
+    year: 1975
+
+  - type: article
+    authors:
+      - family-names: "Hirschman"
+        given-names: "Albert O."
+    title: "The Paternity of an Index"
+    journal: "American Economic Review"
+    volume: 54
+    issue: 5
+    start: 761
+    end: 762
+    year: 1964
+
+  - type: article
+    authors:
+      - family-names: "Shannon"
+        given-names: "Claude E."
+    title: "A Mathematical Theory of Communication"
+    journal: "Bell System Technical Journal"
+    volume: 27
+    issue: 3
+    start: 379
+    end: 423
+    year: 1948
+
+  - type: article
+    authors:
+      - family-names: "Farrell"
+        given-names: "Henry"
+      - family-names: "Newman"
+        given-names: "Abraham L."
+    title: "Weaponized Interdependence: How Global Economic Networks Shape State Coercion"
+    journal: "International Security"
+    volume: 44
+    issue: 1
+    start: 42
+    end: 79
+    year: 2019
+    doi: "10.1162/isec_a_00351"

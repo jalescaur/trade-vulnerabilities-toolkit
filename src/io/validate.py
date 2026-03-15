@@ -110,24 +110,26 @@ def audit_iso3_codes(df: pd.DataFrame, cols=("reporter", "partner"), top_n: int 
     """
     ISO3 anomaly audit (pattern-based).
 
-    This will surface:
-    - aggregates (e.g., WLD)
-    - non-standard entities
-    - malformed strings
-
-    You can then decide in analysis whether to exclude aggregates.
+    Safe for empty datasets OR when no anomalies are found:
+    - returns an empty table with expected columns (no KeyError).
     """
     rows = []
     for c in cols:
         if c not in df.columns:
             continue
+        if len(df) == 0:
+            continue
+
         bad = df.loc[~df[c].apply(is_plausible_iso3), c].astype(str).value_counts().head(top_n)
         for code, count in bad.items():
             rows.append({"column": c, "code": code, "count": int(count)})
 
+    if not rows:
+        out = pd.DataFrame(columns=["column", "code", "count"])
+        return AuditResult(name="audit_iso3_codes", rows=0, details=out)
+
     out = pd.DataFrame(rows).sort_values(["column", "count"], ascending=[True, False])
     return AuditResult(name="audit_iso3_codes", rows=len(out), details=out)
-
 
 # --------------------------------------------------------------------------------------
 # Domain-specific audits (trade structure)
@@ -167,11 +169,12 @@ def audit_year_hs6_coverage(df: pd.DataFrame) -> AuditResult:
     )
     return AuditResult("audit_year_hs6_coverage", rows=len(out), details=out)
 
-
 def audit_flow_distribution(df: pd.DataFrame, flow_col_candidates=("flow", "flowDesc", "flowCode")) -> AuditResult:
     """
     Distribution of flows (Import/Export) if present.
-    We keep this flexible because your dataset may store flow as text or code.
+
+    Safe for empty datasets:
+    - returns an empty table with expected columns
     """
     flow_col = None
     for c in flow_col_candidates:
@@ -182,12 +185,16 @@ def audit_flow_distribution(df: pd.DataFrame, flow_col_candidates=("flow", "flow
     if flow_col is None:
         return AuditResult("audit_flow_distribution", 0, pd.DataFrame([{"warning": "No flow column found"}]))
 
-    out = (
-        df[flow_col].astype(str).value_counts(dropna=False)
-          .reset_index()
-          .rename(columns={"index": "flow_value", flow_col: "count"})
-    )
-    out["share"] = out["count"] / out["count"].sum()
+    if len(df) == 0:
+        empty = pd.DataFrame(columns=["flow_value", "count", "share"])
+        return AuditResult("audit_flow_distribution", 0, empty)
+
+    vc = df[flow_col].astype(str).value_counts(dropna=False)
+    out = vc.reset_index(name="count").rename(columns={"index": "flow_value"})
+    out["count"] = pd.to_numeric(out["count"], errors="coerce").fillna(0).astype(int)
+    denom = out["count"].sum()
+    out["share"] = out["count"] / denom if denom else 0.0
+
     return AuditResult("audit_flow_distribution", rows=len(out), details=out)
 
 
@@ -195,22 +202,27 @@ def audit_aggregate_flags(df: pd.DataFrame) -> AuditResult:
     """
     Audit aggregate indicators if present.
 
-    Your raw schema includes:
-    - isAggregate (boolean-ish)
-    - isReported, isAggregate, isLeaf, aggrLevel, etc.
-
-    After normalization we usually keep many original fields, so this audit can help
-    decide whether to exclude aggregates from analysis.
+    Safe for empty datasets:
+    - returns an empty table with expected columns
     """
     candidates = [c for c in ["isAggregate", "aggrLevel", "isLeaf", "isReported"] if c in df.columns]
     if not candidates:
         return AuditResult("audit_aggregate_flags", 0, pd.DataFrame([{"warning": "No aggregate flag columns found"}]))
+
+    if len(df) == 0:
+        empty = pd.DataFrame(columns=["field", "value", "count", "share_within_field"])
+        return AuditResult("audit_aggregate_flags", 0, empty)
 
     rows = []
     for c in candidates:
         vc = df[c].astype(str).value_counts(dropna=False)
         for v, cnt in vc.items():
             rows.append({"field": c, "value": v, "count": int(cnt)})
+
+    if not rows:
+        empty = pd.DataFrame(columns=["field", "value", "count", "share_within_field"])
+        return AuditResult("audit_aggregate_flags", 0, empty)
+
     out = pd.DataFrame(rows).sort_values(["field", "count"], ascending=[True, False])
-    out["share_within_field"] = out.groupby("field")["count"].transform(lambda s: s / s.sum())
+    out["share_within_field"] = out.groupby("field")["count"].transform(lambda s: s / s.sum() if s.sum() else 0.0)
     return AuditResult("audit_aggregate_flags", rows=len(out), details=out)

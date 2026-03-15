@@ -69,6 +69,9 @@ def coefficient_of_variation(x: pd.Series) -> float:
 
 def global_totals(df: pd.DataFrame) -> pd.DataFrame:
     """Total trade value by year and flow."""
+    if df.empty:
+        return pd.DataFrame(columns=["year", "flow", "total_value"])
+    
     return (
         df.groupby(["year", "flow"], as_index=False)["value"].sum()
           .rename(columns={"value": "total_value"})
@@ -78,6 +81,9 @@ def global_totals(df: pd.DataFrame) -> pd.DataFrame:
 
 def global_hs6_totals(df: pd.DataFrame) -> pd.DataFrame:
     """Total trade by year, flow, and HS6."""
+    if df.empty:
+        return pd.DataFrame(columns=["year", "flow", "hs6", "hs6_value"])
+
     return (
         df.groupby(["year", "flow", "hs6"], as_index=False)["value"].sum()
           .rename(columns={"value": "hs6_value"})
@@ -88,6 +94,9 @@ def global_hs6_totals(df: pd.DataFrame) -> pd.DataFrame:
 def hs6_global_shares(df: pd.DataFrame) -> pd.DataFrame:
     """HS6 share of basket total by year and flow."""
     g = global_hs6_totals(df)
+    if g.empty:
+        return pd.DataFrame(columns=["year", "flow", "hs6", "hs6_value", "basket_total", "share_of_basket"])
+        
     g["basket_total"] = g.groupby(["year", "flow"])["hs6_value"].transform("sum")
     g["share_of_basket"] = g["hs6_value"] / g["basket_total"]
     return g
@@ -100,17 +109,14 @@ def hs6_global_shares(df: pd.DataFrame) -> pd.DataFrame:
 def global_exporter_concentration(df: pd.DataFrame, k_list=(3, 5)) -> pd.DataFrame:
     """
     Global exporter concentration for each HS6 and year using EXPORT flows.
-
-    For Export rows:
-      exporter = reporter
-      importer = partner
-
-    Output:
-      year, hs6, HHI, CR3, CR5, n_exporters
     """
+    cols = ["year", "hs6", "HHI", "n_exporters"] + [f"CR{k}" for k in k_list]
+    if df.empty:
+        return pd.DataFrame(columns=cols)
+
     d = df[df["flow"].str.lower().eq("export")].copy()
     if d.empty:
-        return pd.DataFrame(columns=["year", "hs6", "HHI", "CR3", "CR5", "n_exporters"])
+        return pd.DataFrame(columns=cols)
 
     g = d.groupby(["year", "hs6", "reporter"], as_index=False)["value"].sum()
     g["share"] = g.groupby(["year", "hs6"])["value"].transform(_shares)
@@ -132,17 +138,14 @@ def global_exporter_concentration(df: pd.DataFrame, k_list=(3, 5)) -> pd.DataFra
 def importer_supplier_concentration(df: pd.DataFrame, k_list=(1, 3, 5)) -> pd.DataFrame:
     """
     Importer-side supplier concentration using IMPORT flows.
-
-    For Import rows:
-      importer = reporter
-      supplier = partner
-
-    Output:
-      year, hs6, importer, top_supplier, Top1_share, HHI_suppliers, CR3, CR5, n_suppliers
     """
+    cols = ["year", "hs6", "importer", "top_supplier", "Top1_share", "HHI_suppliers", "n_suppliers"] + [f"CR{k}" for k in k_list]
+    if df.empty:
+        return pd.DataFrame(columns=cols)
+
     d = df[df["flow"].str.lower().eq("import")].copy()
     if d.empty:
-        return pd.DataFrame()
+        return pd.DataFrame(columns=cols)
 
     g = d.groupby(["year", "hs6", "reporter", "partner"], as_index=False)["value"].sum()
     g["importer_total"] = g.groupby(["year", "hs6", "reporter"])["value"].transform("sum")
@@ -177,11 +180,6 @@ def importer_supplier_concentration(df: pd.DataFrame, k_list=(1, 3, 5)) -> pd.Da
 # 3) Growth and volatility
 # ---------------------------
 
-def yoy_growth(series: pd.Series) -> pd.Series:
-    """Year-over-year growth for a time series sorted by year."""
-    return series.pct_change().replace([np.inf, -np.inf], np.nan)
-
-
 def cagr(first: float, last: float, n_periods: int) -> float:
     """Compound annual growth rate."""
     if first <= 0 or last <= 0 or n_periods <= 0:
@@ -192,32 +190,43 @@ def cagr(first: float, last: float, n_periods: int) -> float:
 def hs6_growth_volatility(df: pd.DataFrame) -> pd.DataFrame:
     """
     Growth and volatility for HS6 totals (by flow).
-    Produces:
-      - YoY growth (per year)
-      - CAGR over full window (per hs6-flow)
-      - CV (volatility) over full window
     """
     g = global_hs6_totals(df).copy()
+    
+    if g.empty:
+        return pd.DataFrame(columns=["year", "flow", "hs6", "hs6_value", "yoy_growth", "CAGR", "CV"])
+
     g = g.sort_values(["flow", "hs6", "year"])
 
-    # YoY
-    g["yoy_growth"] = g.groupby(["flow", "hs6"])["hs6_value"].apply(yoy_growth)
+    # FIX: Use native pct_change on groupby object (Pandas 3.0 safe)
+    # This avoids "incompatible index" errors from apply()
+    g["yoy_growth"] = g.groupby(["flow", "hs6"])["hs6_value"].pct_change()
+    g["yoy_growth"] = g["yoy_growth"].replace([np.inf, -np.inf], np.nan)
 
     # Window-level stats
     stats = []
     for (flow, hs6), sub in g.groupby(["flow", "hs6"]):
         sub = sub.sort_values("year")
+        if len(sub) < 2:
+            continue 
+            
         first = float(sub["hs6_value"].iloc[0])
         last = float(sub["hs6_value"].iloc[-1])
         n = int(sub["year"].iloc[-1] - sub["year"].iloc[0])
+        
         stats.append({
             "flow": flow,
             "hs6": hs6,
             "CAGR": cagr(first, last, n) if n > 0 else np.nan,
             "CV": coefficient_of_variation(sub["hs6_value"]),
         })
-    stats_df = pd.DataFrame(stats)
+    
+    if not stats:
+        g["CAGR"] = np.nan
+        g["CV"] = np.nan
+        return g
 
+    stats_df = pd.DataFrame(stats)
     return g.merge(stats_df, on=["flow", "hs6"], how="left")
 
 
@@ -227,15 +236,15 @@ def hs6_growth_volatility(df: pd.DataFrame) -> pd.DataFrame:
 
 def rca_balassa(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Balassa RCA using EXPORT flows:
-      RCA_{c,p} = (X_{c,p} / X_{c,all}) / (X_{world,p} / X_{world,all})
-
-    Returns:
-      year, exporter, hs6, RCA
+    Balassa RCA using EXPORT flows.
     """
+    cols = ["year", "exporter", "hs6", "RCA"]
+    if df.empty:
+        return pd.DataFrame(columns=cols)
+
     d = df[df["flow"].str.lower().eq("export")].copy()
     if d.empty:
-        return pd.DataFrame(columns=["year", "exporter", "hs6", "RCA"])
+        return pd.DataFrame(columns=cols)
 
     cp = d.groupby(["year", "reporter", "hs6"], as_index=False)["value"].sum().rename(columns={"reporter": "exporter", "value": "X_cp"})
     c_all = d.groupby(["year", "reporter"], as_index=False)["value"].sum().rename(columns={"reporter": "exporter", "value": "X_c"})
@@ -244,7 +253,7 @@ def rca_balassa(df: pd.DataFrame) -> pd.DataFrame:
 
     out = cp.merge(c_all, on=["year", "exporter"]).merge(w_p, on=["year", "hs6"]).merge(w_all, on=["year"])
     out["RCA"] = (out["X_cp"] / out["X_c"]) / (out["X_wp"] / out["X_w"])
-    return out[["year", "exporter", "hs6", "RCA"]].replace([np.inf, -np.inf], np.nan)
+    return out[cols].replace([np.inf, -np.inf], np.nan)
 
 
 # ---------------------------
@@ -253,18 +262,17 @@ def rca_balassa(df: pd.DataFrame) -> pd.DataFrame:
 
 def iit_grubel_lloyd(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Grubel-Lloyd IIT index for each country-product-year:
-      IIT = 1 - |X - M| / (X + M)
-    (Defined when X+M>0; else NaN)
-
-    Uses:
-      exports: flow=Export, reporter=c
-      imports: flow=Import, reporter=c
-    Returns:
-      year, country, hs6, X, M, IIT
+    Grubel-Lloyd IIT index for each country-product-year.
     """
+    cols = ["year", "country", "hs6", "X", "M", "IIT"]
+    if df.empty:
+        return pd.DataFrame(columns=cols)
+
     ex = df[df["flow"].str.lower().eq("export")].groupby(["year", "reporter", "hs6"], as_index=False)["value"].sum().rename(columns={"reporter":"country","value":"X"})
     im = df[df["flow"].str.lower().eq("import")].groupby(["year", "reporter", "hs6"], as_index=False)["value"].sum().rename(columns={"reporter":"country","value":"M"})
+
+    if ex.empty and im.empty:
+        return pd.DataFrame(columns=cols)
 
     out = ex.merge(im, on=["year","country","hs6"], how="outer").fillna(0.0)
     denom = out["X"] + out["M"]
@@ -278,12 +286,15 @@ def iit_grubel_lloyd(df: pd.DataFrame) -> pd.DataFrame:
 
 def export_diversification_entropy(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Export portfolio diversification per exporter-year:
-    - entropy of HS6 export shares (higher -> more diversified)
+    Export portfolio diversification per exporter-year.
     """
+    cols = ["year","exporter","entropy","n_products"]
+    if df.empty:
+        return pd.DataFrame(columns=cols)
+
     d = df[df["flow"].str.lower().eq("export")].copy()
     if d.empty:
-        return pd.DataFrame(columns=["year","exporter","entropy","n_products"])
+        return pd.DataFrame(columns=cols)
 
     g = d.groupby(["year","reporter","hs6"], as_index=False)["value"].sum().rename(columns={"reporter":"exporter"})
     g["share"] = g.groupby(["year","exporter"])["value"].transform(_shares)

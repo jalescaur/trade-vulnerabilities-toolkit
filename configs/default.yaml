@@ -1,18 +1,17 @@
 # configs/default.yaml
 # -------------------
-# Generic configuration for running the pipeline on user-provided Comtrade CSV files.
-# This file is meant to be edited per project, but also works as a default.
+# Configuração ajustada para ler a coluna 'period' como Ano.
 
 project:
   name: "ai-infrastructure-trade"
-  basket_name: "ai_basket_v01_example"
+  basket_name: "ai_basket_v01"
   basket_version: "v0.1"
-  description: "Generic pipeline to normalize COMTRADE CSVs and build auditable intermediate datasets."
+  description: "Pipeline ajustado para normalização de dados Comtrade."
 
 inputs:
   raw_root: "data/raw"
   discovery_mode: "hs6_folders"
-  csv_sep: ","
+  csv_sep: ","   # Garante separador por vírgula
   glob: "*.csv"
 
   csv_encoding: "utf-8"
@@ -22,8 +21,6 @@ inputs:
     - "latin1"
 
 basket:
-  # Provide HS6 list here (software will analyze ONLY these codes).
-  # You can paste your list or point to another config file later.
   hs6:
     - "841582"
     - "847150"
@@ -35,24 +32,12 @@ basket:
     - "854239"
     - "854470"
 
-  # Optional metadata (helps auditing and later table generation)
-  meta:
-    "854231": { desc: "Integrated circuits: processors and controllers", layer: "compute", proxy: false }
-    "854232": { desc: "Integrated circuits: memories", layer: "compute", proxy: false }
-    "854239": { desc: "Integrated circuits: other (n.e.c.)", layer: "compute", proxy: true }
-    "847150": { desc: "ADP units: processing units", layer: "compute", proxy: false }
-    "847170": { desc: "ADP units: storage units", layer: "storage", proxy: false }
-    "851762": { desc: "Communication apparatus: switching/routing; data transmission/regeneration", layer: "network", proxy: false }
-    "854470": { desc: "Optical fibre cables", layer: "optics", proxy: false }
-    "850440": { desc: "Electrical static converters (proxy for PSU/UPS)", layer: "power", proxy: true }
-    "841582": { desc: "Air conditioning machines (proxy for facility cooling)", layer: "facility", proxy: true }
-
 schema:
-  # Maps your raw CSV columns -> canonical columns used by the pipeline.
-  # Based on your header:
-  # refYear, reporterISO, reporterDesc, partnerISO, partnerDesc, flowDesc, cmdCode, primaryValue, ...
+  # CORREÇÃO CRÍTICA AQUI:
+  # Mapeamos 'period' para 'year' porque o log mostrou que refYear estava pegando valor errado.
   rename_map:
-    refYear: "year"
+    period: "year"             # <--- MUDANÇA: period agora é a coluna oficial de ano
+    refYear: "refYear_raw"     # Guardamos o original só por segurança
     reporterISO: "reporter"
     reporterDesc: "reporter_name_raw"
     partnerISO: "partner"
@@ -61,7 +46,6 @@ schema:
     cmdCode: "hs6"
     primaryValue: "value"
 
-  # Columns that should be kept (others will remain unless later steps slim them down)
   required_columns:
     - "year"
     - "reporter"
@@ -75,12 +59,7 @@ filters:
   value_positive_only: true
 
 outputs:
-  # Intermediate artifacts (regenerated; typically not committed)
   processed_root: "data/processed"
-  intermediate_dataset_name: "dataset.parquet"
-
-  # Exploratory audits (Excel; regenerated)
+  intermediate_dataset_name: "aiinfra_v01.parquet"
   exploratory_excels_dir: "data/processed/exploratory_excels"
-
-  # Logs (regenerated)
   logs_dir: "outputs/logs"
