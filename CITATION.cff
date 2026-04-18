@@ -6,7 +6,6 @@ type: software
 authors:
   - family-names: "Caur"
     given-names: "Jales"
-    orcid: "https://orcid.org/XXXX-XXXX-XXXX-XXXX"
     affiliation: "University of Brasília"
   - family-names: "Kreuz"
     given-names: "Jônatas"
@@ -48,10 +47,9 @@ license: "MIT"
 version: "0.1.0"
 date-released: "2026-03-03"
 
-# After minting a Zenodo DOI for a release, uncomment and fill:
-doi: "10.5281/zenodo.XXXXXXX"
+# After minting a Zenodo DOI for a release, uncomment the line below and fill it:
+# doi: "10.5281/zenodo.YOUR_NUMBER_HERE"
 
-# Preferred citation for academic use:
 preferred-citation:
   type: software
   authors:
@@ -66,9 +64,8 @@ preferred-citation:
   date-released: "2026-04-18"
   license: "MIT"
   url: "https://github.com/jalescaur/trade-vulnerabilities-toolkit"
-  doi: "10.5281/zenodo.XXXXXXX"
+  # doi: "10.5281/zenodo.YOUR_NUMBER_HERE"
 
-# Key methodological references implemented in this software:
 references:
   - type: article
     authors:
