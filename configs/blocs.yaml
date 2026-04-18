@@ -1,0 +1,447 @@
+# configs/blocs.yaml
+# ==================
+# Editable definitions of geopolitical and regional blocs.
+#
+# Each bloc entry requires:
+#   members: list of ISO 3166-1 alpha-3 codes (one per line)
+#   aliases:  list of accepted input strings (case-insensitive)
+#
+# To add a new bloc, copy any entry below and edit accordingly.
+# Members must match the ISO3 codes present in your Comtrade dataset.
+
+blocs:
+
+  # ---------------------------------------------------------------------------
+  # Trade & Economic Blocs
+  # ---------------------------------------------------------------------------
+
+  ASEAN:
+    aliases:
+      - "ASEAN"
+      - "Association of Southeast Asian Nations"
+    members:
+      - "BRN"
+      - "KHM"
+      - "IDN"
+      - "LAO"
+      - "MYS"
+      - "MMR"
+      - "PHL"
+      - "SGP"
+      - "THA"
+      - "VNM"
+
+  EU:
+    aliases:
+      - "EU"
+      - "European Union"
+    members:
+      - "AUT"
+      - "BEL"
+      - "BGR"
+      - "HRV"
+      - "CYP"
+      - "CZE"
+      - "DNK"
+      - "EST"
+      - "FIN"
+      - "FRA"
+      - "DEU"
+      - "GRC"
+      - "HUN"
+      - "IRL"
+      - "ITA"
+      - "LVA"
+      - "LTU"
+      - "LUX"
+      - "MLT"
+      - "NLD"
+      - "POL"
+      - "PRT"
+      - "ROU"
+      - "SVK"
+      - "SVN"
+      - "ESP"
+      - "SWE"
+
+  G7:
+    aliases:
+      - "G7"
+      - "Group of Seven"
+    members:
+      - "CAN"
+      - "FRA"
+      - "DEU"
+      - "ITA"
+      - "JPN"
+      - "GBR"
+      - "USA"
+
+  G20:
+    aliases:
+      - "G20"
+      - "Group of Twenty"
+    members:
+      - "ARG"
+      - "AUS"
+      - "BRA"
+      - "CAN"
+      - "CHN"
+      - "FRA"
+      - "DEU"
+      - "IND"
+      - "IDN"
+      - "ITA"
+      - "JPN"
+      - "KOR"
+      - "MEX"
+      - "RUS"
+      - "SAU"
+      - "ZAF"
+      - "TUR"
+      - "GBR"
+      - "USA"
+
+  BRICS:
+    aliases:
+      - "BRICS"
+    members:
+      - "BRA"
+      - "RUS"
+      - "IND"
+      - "CHN"
+      - "ZAF"
+      - "IRN"
+      - "SAU"
+      - "ARE"
+      - "EGY"
+      - "ETH"
+
+  MERCOSUR:
+    aliases:
+      - "MERCOSUR"
+      - "Mercosul"
+    members:
+      - "ARG"
+      - "BRA"
+      - "PRY"
+      - "URY"
+      - "VEN"
+      - "BOL"
+
+  NAFTA:
+    aliases:
+      - "NAFTA"
+      - "USMCA"
+    members:
+      - "USA"
+      - "CAN"
+      - "MEX"
+
+  # ---------------------------------------------------------------------------
+  # Security & Political Blocs
+  # ---------------------------------------------------------------------------
+
+  NATO:
+    aliases:
+      - "NATO"
+      - "North Atlantic Treaty Organization"
+    members:
+      - "ALB"
+      - "BEL"
+      - "BGR"
+      - "CAN"
+      - "HRV"
+      - "CZE"
+      - "DNK"
+      - "EST"
+      - "FIN"
+      - "FRA"
+      - "DEU"
+      - "GRC"
+      - "HUN"
+      - "ISL"
+      - "ITA"
+      - "LVA"
+      - "LTU"
+      - "LUX"
+      - "MNE"
+      - "NLD"
+      - "MKD"
+      - "NOR"
+      - "POL"
+      - "PRT"
+      - "ROU"
+      - "SVK"
+      - "SVN"
+      - "ESP"
+      - "SWE"
+      - "TUR"
+      - "GBR"
+      - "USA"
+
+  # ---------------------------------------------------------------------------
+  # Geographic Regions
+  # ---------------------------------------------------------------------------
+
+  "North America":
+    aliases:
+      - "North America"
+      - "Northern America"
+    members:
+      - "USA"
+      - "CAN"
+      - "MEX"
+
+  "Latin America":
+    aliases:
+      - "Latin America"
+      - "Latin America and the Caribbean"
+      - "South America"
+      - "LATAM"
+    members:
+      - "ARG"
+      - "BOL"
+      - "BRA"
+      - "CHL"
+      - "COL"
+      - "CRI"
+      - "CUB"
+      - "DOM"
+      - "ECU"
+      - "SLV"
+      - "GTM"
+      - "HND"
+      - "MEX"
+      - "NIC"
+      - "PAN"
+      - "PRY"
+      - "PER"
+      - "URY"
+      - "VEN"
+      - "ATG"
+      - "BHS"
+      - "BRB"
+      - "BLZ"
+      - "DMA"
+      - "GRD"
+      - "GUY"
+      - "HTI"
+      - "JAM"
+      - "KNA"
+      - "LCA"
+      - "VCT"
+      - "SUR"
+      - "TTO"
+
+  "Europe":
+    aliases:
+      - "Europe"
+      - "European"
+    members:
+      - "ALB"
+      - "AND"
+      - "ARM"
+      - "AUT"
+      - "AZE"
+      - "BLR"
+      - "BEL"
+      - "BIH"
+      - "BGR"
+      - "HRV"
+      - "CYP"
+      - "CZE"
+      - "DNK"
+      - "EST"
+      - "FIN"
+      - "FRA"
+      - "GEO"
+      - "DEU"
+      - "GRC"
+      - "HUN"
+      - "ISL"
+      - "IRL"
+      - "ITA"
+      - "KAZ"
+      - "LVA"
+      - "LIE"
+      - "LTU"
+      - "LUX"
+      - "MLT"
+      - "MDA"
+      - "MCO"
+      - "MNE"
+      - "NLD"
+      - "MKD"
+      - "NOR"
+      - "POL"
+      - "PRT"
+      - "ROU"
+      - "RUS"
+      - "SMR"
+      - "SRB"
+      - "SVK"
+      - "SVN"
+      - "ESP"
+      - "SWE"
+      - "CHE"
+      - "TUR"
+      - "UKR"
+      - "GBR"
+      - "VAT"
+
+  "East Asia":
+    aliases:
+      - "East Asia"
+      - "Northeast Asia"
+    members:
+      - "CHN"
+      - "JPN"
+      - "KOR"
+      - "MNG"
+      - "PRK"
+      - "TWN"
+      - "HKG"
+      - "MAC"
+
+  "Southeast Asia":
+    aliases:
+      - "Southeast Asia"
+      - "SE Asia"
+    members:
+      - "BRN"
+      - "KHM"
+      - "TLS"
+      - "IDN"
+      - "LAO"
+      - "MYS"
+      - "MMR"
+      - "PHL"
+      - "SGP"
+      - "THA"
+      - "VNM"
+
+  "South Asia":
+    aliases:
+      - "South Asia"
+      - "Southern Asia"
+    members:
+      - "AFG"
+      - "BGD"
+      - "BTN"
+      - "IND"
+      - "MDV"
+      - "NPL"
+      - "PAK"
+      - "LKA"
+
+  "Middle East":
+    aliases:
+      - "Middle East"
+      - "MENA"
+      - "Middle East and North Africa"
+    members:
+      - "BHR"
+      - "EGY"
+      - "IRN"
+      - "IRQ"
+      - "ISR"
+      - "JOR"
+      - "KWT"
+      - "LBN"
+      - "LBY"
+      - "MAR"
+      - "OMN"
+      - "PSE"
+      - "QAT"
+      - "SAU"
+      - "SYR"
+      - "TUN"
+      - "ARE"
+      - "YEM"
+      - "DZA"
+
+  "Sub-Saharan Africa":
+    aliases:
+      - "Sub-Saharan Africa"
+      - "Africa"
+      - "Sub Saharan Africa"
+    members:
+      - "AGO"
+      - "BEN"
+      - "BWA"
+      - "BFA"
+      - "BDI"
+      - "CPV"
+      - "CMR"
+      - "CAF"
+      - "TCD"
+      - "COM"
+      - "COD"
+      - "COG"
+      - "CIV"
+      - "DJI"
+      - "GNQ"
+      - "ERI"
+      - "SWZ"
+      - "ETH"
+      - "GAB"
+      - "GMB"
+      - "GHA"
+      - "GIN"
+      - "GNB"
+      - "KEN"
+      - "LSO"
+      - "LBR"
+      - "MDG"
+      - "MWI"
+      - "MLI"
+      - "MRT"
+      - "MUS"
+      - "MOZ"
+      - "NAM"
+      - "NER"
+      - "NGA"
+      - "RWA"
+      - "STP"
+      - "SEN"
+      - "SLE"
+      - "SOM"
+      - "ZAF"
+      - "SSD"
+      - "SDN"
+      - "TZA"
+      - "TGO"
+      - "UGA"
+      - "ZMB"
+      - "ZWE"
+
+  "Oceania":
+    aliases:
+      - "Oceania"
+      - "Pacific"
+    members:
+      - "AUS"
+      - "FJI"
+      - "KIR"
+      - "MHL"
+      - "FSM"
+      - "NRU"
+      - "NZL"
+      - "PLW"
+      - "PNG"
+      - "WSM"
+      - "SLB"
+      - "TON"
+      - "TUV"
+      - "VUT"
+
+  "Central Asia":
+    aliases:
+      - "Central Asia"
+    members:
+      - "KAZ"
+      - "KGZ"
+      - "TJK"
+      - "TKM"
+      - "UZB"

@@ -10,7 +10,6 @@ authors:
     affiliation: "University of Brasília"
   - family-names: "Kreuz"
     given-names: "Jônatas"
-    orcid: "https://orcid.org/XXXX-XXXX-XXXX-XXXX"
     affiliation: "University of Brasília"
 
 abstract: >-
@@ -25,8 +24,8 @@ abstract: >-
   research on AI infrastructure trade vulnerabilities, but general-purpose
   by design.
 
-repository-code: "https://github.com/YOUR_REPO/trade-vulnerabilities-toolkit"
-url: "https://github.com/YOUR_REPO/trade-vulnerabilities-toolkit"
+repository-code: "https://github.com/jalescaur/trade-vulnerabilities-toolkit"
+url: "https://github.com/jalescaur/trade-vulnerabilities-toolkit"
 
 keywords:
   - "UN COMTRADE"
@@ -50,7 +49,7 @@ version: "0.1.0"
 date-released: "2026-03-03"
 
 # After minting a Zenodo DOI for a release, uncomment and fill:
-# doi: "10.5281/zenodo.XXXXXXX"
+doi: "10.5281/zenodo.XXXXXXX"
 
 # Preferred citation for academic use:
 preferred-citation:
@@ -64,10 +63,10 @@ preferred-citation:
       affiliation: "University of Brasília"
   title: "Trade Vulnerabilities Toolkit: A configuration-driven pipeline for UN COMTRADE data normalization and trade vulnerability analysis"
   version: "0.1.0"
-  date-released: "2026-03-03"
+  date-released: "2026-04-18"
   license: "MIT"
-  url: "https://github.com/YOUR_REPO/trade-vulnerabilities-toolkit"
-  # doi: "10.5281/zenodo.XXXXXXX"
+  url: "https://github.com/jalescaur/trade-vulnerabilities-toolkit"
+  doi: "10.5281/zenodo.XXXXXXX"
 
 # Key methodological references implemented in this software:
 references:
